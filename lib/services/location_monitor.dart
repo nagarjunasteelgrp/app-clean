@@ -1,0 +1,86 @@
+import 'dart:async';
+import 'package:digital_lync/constants/app_dialog_box.dart';
+import 'package:digital_lync/services/app_permissions.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
+import 'package:location/location.dart';
+
+class LocationMonitor {
+  static Timer? locationTimer;
+  static bool isDialogOpen = false;
+  static bool isSettingsDialogOpen = false;
+
+  static void startLocationMonitoring() {
+    locationTimer?.cancel();
+    locationTimer = Timer.periodic(
+      const Duration(minutes: 2),
+      (timer) async {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        LocationPermission permission = await Geolocator.checkPermission();
+        if ((!serviceEnabled ||
+                permission == LocationPermission.deniedForever) &&
+            !isDialogOpen) {
+          isDialogOpen = true;
+          showLocationDialog(permission);
+        }
+        if (permission == LocationPermission.denied) {
+          await AppPermissions.requestAll();
+        }
+      },
+    );
+  }
+
+  static void showLocationDialog(LocationPermission permission) async {
+    if (permission == LocationPermission.deniedForever) {
+      if (!isSettingsDialogOpen) {
+        isSettingsDialogOpen = true;
+        AppDialogBox.showConfirmationDialog(
+          context: Get.context!,
+          title: "Permission Required",
+          customButtonText: "Open Settings",
+          onYes: () async => await Geolocator.openAppSettings(),
+          headerTitle:
+              "Location access is permanently denied. Please enable it in settings.",
+        ).then((_) {
+          isSettingsDialogOpen = false;
+          isDialogOpen = false;
+        });
+      }
+    } else {
+      AppDialogBox.showConfirmationDialog(
+        context: Get.context!,
+        title: "Location Required",
+        customButtonText: "Enable",
+        headerTitle:
+            "Please enable location services to continue using the app.",
+        onYes: () async {
+          await enableLocationService();
+        },
+      ).then((_) {
+        isDialogOpen = false;
+      });
+    }
+  }
+
+  static Future<void> enableLocationService() async {
+    Location location = Location();
+
+    bool serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+    }
+
+    // Request permission
+    PermissionStatus permission = await location.hasPermission();
+    if (permission == PermissionStatus.denied) {
+      permission = await location.requestPermission();
+    }
+
+    if (serviceEnabled &&
+        (permission == PermissionStatus.granted ||
+            permission == PermissionStatus.grantedLimited)) {
+      isDialogOpen = false;
+      Get.back();
+    }
+  }
+}

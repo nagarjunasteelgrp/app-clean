@@ -1,0 +1,96 @@
+import 'dart:convert';
+import 'package:digital_lync/helper/shared_prefs_helper.dart';
+import 'package:digital_lync/services/api/api_service.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+class TrackingCurrentLocationProvider extends ChangeNotifier {
+  String address = '';
+  int? trackingInfoId;
+
+  double? latitude;
+  double? longitude;
+  LatLng? initialPosition;
+  bool isLoading = false;
+
+  List markers = [];
+  List trackingInfoNotesList = [];
+  List trackingInfoImagesList = [];
+
+  GoogleMapController? mapController;
+  ApiServices apiServices = ApiServices();
+  TextEditingController addNotesController = TextEditingController();
+
+  void setMapController(GoogleMapController controller) {
+    mapController = controller;
+  }
+
+  void animateCamera(double lat, double lng) {
+    if (mapController != null) {
+      mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(lat, lng), 15),
+      );
+      notifyListeners();
+    }
+  }
+
+  TrackingCurrentLocationProvider() {
+    trackingInfoAPI();
+    getMapData();
+    notifyListeners();
+  }
+
+  void addMarker(LatLng latLng, String address) {
+    markers.add(
+      Marker(
+        onTap: () {},
+        position: latLng,
+        markerId: MarkerId(latLng.toString()),
+        icon: BitmapDescriptor.defaultMarker,
+      ),
+    );
+    notifyListeners();
+  }
+
+  getMapData() async {
+    latitude = SharedPrefsHelper.getDouble("latitude");
+    longitude = SharedPrefsHelper.getDouble("longitude");
+    notifyListeners();
+  }
+
+  Future trackingInfoAPI() async {
+    try {
+      isLoading = true;
+      notifyListeners();
+      var response = await apiServices.trackingInfoList(id: 3);
+      if (response.statusCode == 200) {
+        markers.clear();
+        var responseData = jsonDecode(response.body);
+
+        trackingInfoNotesList = responseData['trackingInfo']['trackingNotes'];
+        trackingInfoImagesList = responseData['trackingInfo']['trackingImages'];
+
+        latitude = responseData['trackingInfo']['latitude'] ?? 0.0;
+        longitude = responseData['trackingInfo']['longitude'] ?? 0.0;
+        initialPosition = LatLng(latitude ?? 0.0, longitude ?? 0.0);
+
+        address = responseData['trackingInfo']['address'];
+        markers.add({
+          'marker_id': markers.length + 1,
+          'latitude':
+              double.parse(responseData['trackingInfo']['latitude'].toString()),
+          'longitude': double.parse(
+              responseData['trackingInfo']['longitude'].toString()),
+        });
+        animateCamera(
+            double.parse(responseData['trackingInfo']['latitude'].toString()),
+            double.parse(responseData['trackingInfo']['longitude'].toString()));
+        notifyListeners();
+      } else {}
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+}

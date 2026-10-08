@@ -1,0 +1,106 @@
+import 'package:digital_lync/common/app_button.dart';
+import 'package:digital_lync/common/app_loader.dart';
+import 'package:digital_lync/common/app_text.dart';
+import 'package:digital_lync/constants/app_colors.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/get_navigation.dart';
+import 'package:sizer/sizer.dart';
+
+class AppDialogBox {
+  static Future<void> showConfirmationDialog({
+    required String title,
+    String? customButtonText,
+    required VoidCallback onYes,
+    required String headerTitle,
+    required BuildContext context,
+  }) async {
+    bool isLoading = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AppText(
+                    title: title,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    maxLines: 3,
+                    color: AppColors.BLACK_COLOR,
+                  ),
+                  GestureDetector(
+                    onTap: () => Get.back(),
+                    child: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              content: Column(
+                spacing: 4.w,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppText(
+                    maxLines: 2,
+                    fontSize: 14,
+                    title: headerTitle,
+                    fontWeight: FontWeight.w500,
+                    textAlign: TextAlign.center,
+                    color: AppColors.BLACK_COLOR,
+                  ),
+                  isLoading
+                      ? const Center(
+                          child: SpinKitLoader(),
+                        )
+                      : Row(
+                          spacing: 2.w,
+                          children: [
+                            Expanded(
+                              child: appButton(
+                                context: context,
+                                onTap: () {
+                                  Get.back();
+                                },
+                                child: const AppText(
+                                  title: 'Cancel',
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: appButton(
+                                context: context,
+                                onTap: () {
+                                  setState(() => isLoading = true);
+                                  Future.delayed(const Duration(seconds: 2),
+                                      () {
+                                    onYes();
+                                    isLoading = false;
+                                    Get.back();
+                                  });
+                                },
+                                child: AppText(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                  title: customButtonText ?? 'yes',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
